@@ -1,0 +1,56 @@
+name: build-and-push
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ vars.DOCKERHUB_USERNAME }}/trip-planner:latest
+            ${{ vars.DOCKERHUB_USERNAME }}/trip-planner:${{ github.ref_name }}
+
+      - name: Build release body
+        run: |
+          previous_tag=$(git describe --tags --abbrev=0 $(git rev-list --tags --max-count=2 | tail -n 1))
+          git log --pretty=format:"- %s %H%n%n%b%n" ${previous_tag}..${{ github.ref_name }} \
+            | awk '{if ($0 !~ /^-/) print "  " $0; else print $0}' > ./inner_release_body
+          { 
+            echo -e "This release contains the following changes:\n"
+            cat ./inner_release_body
+            echo "**Full changelog**: https://github.com/${{ github.repository }}/compare/${previous_tag}..${{ github.ref_name }}"
+          } > ./release_body 
+
+      - name: Create release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: v${{ github.ref_name }}
+          body_path: ./release_body
+          make_latest: true

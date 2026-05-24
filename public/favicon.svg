@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
+  <!-- Map pin body -->
+  <path d="M24 2C15.163 2 8 9.163 8 18c0 12 16 28 16 28s16-16 16-28c0-8.837-7.163-16-16-16z" fill="#2E7D32"/>
+  <!-- Inner circle -->
+  <circle cx="24" cy="18" r="7" fill="#fff"/>
+  <!-- Small map/compass cross -->
+  <path d="M24 13v10M19 18h10" stroke="#2E7D32" stroke-width="2" stroke-linecap="round"/>
+</svg>
