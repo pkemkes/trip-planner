@@ -28,6 +28,8 @@ function App() {
   const [isZoneDialogOpen, setIsZoneDialogOpen] = useState(false);
   const [pendingMarkerLatitude, setPendingMarkerLatitude] = useState(0);
   const [pendingMarkerLongitude, setPendingMarkerLongitude] = useState(0);
+  const [editingMarker, setEditingMarker] = useState<MapLocation | null>(null);
+  const [editingZone, setEditingZone] = useState<AreaBoundary | null>(null);
 
   const userAddedMarkers = useMemo(() => mapState?.userAddedMarkers ?? [], [mapState?.userAddedMarkers]);
   const userAddedZones = useMemo(() => mapState?.userAddedZones ?? [], [mapState?.userAddedZones]);
@@ -60,10 +62,21 @@ function App() {
 
   const handleConfirmNewMarker = useCallback(
     (newLocation: MapLocation) => {
-      setUserAddedMarkers((previous) => [...previous, newLocation]);
+      if (editingMarker) {
+        setUserAddedMarkers((previous) =>
+          previous.map((m) =>
+            m.name === editingMarker.name && m.lat === editingMarker.lat
+              ? newLocation
+              : m
+          )
+        );
+      } else {
+        setUserAddedMarkers((previous) => [...previous, newLocation]);
+      }
       setIsMarkerDialogOpen(false);
+      setEditingMarker(null);
     },
-    [setUserAddedMarkers]
+    [setUserAddedMarkers, editingMarker]
   );
 
   const handleFinishZone = useCallback(() => {
@@ -73,12 +86,19 @@ function App() {
 
   const handleConfirmNewZone = useCallback(
     (newZone: AreaBoundary) => {
-      setUserAddedZones((previous) => [...previous, newZone]);
+      if (editingZone) {
+        setUserAddedZones((previous) =>
+          previous.map((z) => (z.name === editingZone.name ? newZone : z))
+        );
+      } else {
+        setUserAddedZones((previous) => [...previous, newZone]);
+      }
       setIsZoneDialogOpen(false);
       setZoneDrawingVertices([]);
       setEditingMode("normal");
+      setEditingZone(null);
     },
-    [setUserAddedZones]
+    [setUserAddedZones, editingZone]
   );
 
   const handleRemoveLocation = useCallback(
@@ -100,6 +120,18 @@ function App() {
     },
     [setUserAddedZones]
   );
+
+  const handleEditLocation = useCallback((location: MapLocation) => {
+    setEditingMarker(location);
+    setPendingMarkerLatitude(location.lat);
+    setPendingMarkerLongitude(location.lng);
+    setIsMarkerDialogOpen(true);
+  }, []);
+
+  const handleEditZone = useCallback((zone: AreaBoundary) => {
+    setEditingZone(zone);
+    setIsZoneDialogOpen(true);
+  }, []);
 
   if (!mapId) {
     return (
@@ -149,6 +181,8 @@ function App() {
           onMapClick={handleMapClick}
           onRemoveLocation={handleRemoveLocation}
           onRemoveZone={handleRemoveZone}
+          onEditLocation={handleEditLocation}
+          onEditZone={handleEditZone}
         />
 
         <Typography
@@ -187,14 +221,16 @@ function App() {
         initialLatitude={pendingMarkerLatitude}
         initialLongitude={pendingMarkerLongitude}
         onConfirm={handleConfirmNewMarker}
-        onCancel={() => setIsMarkerDialogOpen(false)}
+        onCancel={() => { setIsMarkerDialogOpen(false); setEditingMarker(null); }}
+        editingMarker={editingMarker}
       />
 
       <AddZoneDialog
         isOpen={isZoneDialogOpen}
         vertexCoordinates={zoneDrawingVertices}
         onConfirm={handleConfirmNewZone}
-        onCancel={() => setIsZoneDialogOpen(false)}
+        onCancel={() => { setIsZoneDialogOpen(false); setEditingZone(null); }}
+        editingZone={editingZone}
       />
     </ThemeProvider>
   );

@@ -13,7 +13,6 @@ Interactive map application for planning trips. Built with React, Leaflet, and a
 
 ```bash
 pnpm install
-cd server && pnpm install
 ```
 
 ### Start the backend server
@@ -22,7 +21,7 @@ cd server && pnpm install
 pnpm dev:server
 ```
 
-The server starts on `http://localhost:3001` and stores data in `server/maps.db`.
+The server starts on `http://localhost:3001` and stores data in `data/maps.db` (relative to the repo root).
 
 ### Start the frontend dev server
 
@@ -38,10 +37,10 @@ The Vite dev server starts on `http://localhost:5173` and proxies `/api` and `/w
 
 ```bash
 docker build -t trip-planner .
-docker run -p 3001:3001 -v trip-planner-data:/app/server trip-planner
+docker run -p 3001:3001 -v trip-planner-data:/app/data trip-planner
 ```
 
-The production build serves both the API and the static frontend on port 3001.
+The production build serves both the API and the static frontend on port 3001. The volume persists the SQLite database at `/app/data/maps.db`.
 
 ### Docker Compose
 
@@ -54,7 +53,7 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - trip-planner-data:/app/server
+      - trip-planner-data:/app/data
     restart: unless-stopped
 
 volumes:

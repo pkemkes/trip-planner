@@ -1,2 +1,7 @@
+packages:
+  - "frontend"
+  - "server"
+
 allowBuilds:
   esbuild: true
+  better-sqlite3: true

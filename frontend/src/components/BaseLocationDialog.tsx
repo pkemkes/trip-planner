@@ -1,14 +1,17 @@
 import {
+  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   MenuItem,
   TextField,
+  Typography,
 } from "@mui/material";
 import { useState } from "react";
-import type { LocationCategory } from "../types/MapTypes";
+import type { LocationCategory, LocationLink } from "../types/MapTypes";
 
 interface BaseLocationDialogProps {
   isOpen: boolean;
@@ -16,12 +19,13 @@ interface BaseLocationDialogProps {
   submitLabel: string;
   categories: LocationCategory[];
   defaultCategory: LocationCategory;
-  onSubmit: (data: { name: string; category: LocationCategory; description: string; whyVisit: string }) => void;
+  onSubmit: (data: { name: string; category: LocationCategory; description: string; whyVisit: string; links: LocationLink[] }) => void;
   onCancel: () => void;
   nameLabel?: string;
   namePlaceholder?: string;
   headerContent?: React.ReactNode;
   children?: React.ReactNode;
+  initialData?: { name: string; category: LocationCategory; description: string; whyVisit: string; links: LocationLink[] };
 }
 
 export function BaseLocationDialog({
@@ -36,18 +40,21 @@ export function BaseLocationDialog({
   namePlaceholder = "Location name",
   headerContent,
   children,
+  initialData,
 }: BaseLocationDialogProps) {
   const [name, setName] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<LocationCategory>(defaultCategory);
   const [description, setDescription] = useState("");
   const [whyVisitReason, setWhyVisitReason] = useState("");
+  const [links, setLinks] = useState<LocationLink[]>([]);
   const [prevIsOpen, setPrevIsOpen] = useState(false);
 
   if (isOpen && !prevIsOpen) {
-    setName("");
-    setSelectedCategory(defaultCategory);
-    setDescription("");
-    setWhyVisitReason("");
+    setName(initialData?.name ?? "");
+    setSelectedCategory(initialData?.category ?? defaultCategory);
+    setDescription(initialData?.description ?? "");
+    setWhyVisitReason(initialData?.whyVisit ?? "");
+    setLinks(initialData?.links ?? []);
     setPrevIsOpen(true);
   }
   if (!isOpen && prevIsOpen) {
@@ -61,6 +68,7 @@ export function BaseLocationDialog({
       category: selectedCategory,
       description: description.trim(),
       whyVisit: whyVisitReason.trim(),
+      links: links.filter((link) => link.url.trim() !== ""),
     });
   };
 
@@ -109,6 +117,49 @@ export function BaseLocationDialog({
           placeholder="Why visit this place?"
           size="small"
         />
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Links
+          </Typography>
+          {links.map((link, index) => (
+            <Box key={index} sx={{ display: "flex", gap: 1, mb: 1, alignItems: "center" }}>
+              <TextField
+                label="Label"
+                value={link.text}
+                onChange={(event) => {
+                  const updated = [...links];
+                  updated[index] = { ...updated[index], text: event.target.value };
+                  setLinks(updated);
+                }}
+                size="small"
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                label="URL"
+                value={link.url}
+                onChange={(event) => {
+                  const updated = [...links];
+                  updated[index] = { ...updated[index], url: event.target.value };
+                  setLinks(updated);
+                }}
+                size="small"
+                sx={{ flex: 2 }}
+              />
+              <IconButton
+                size="small"
+                onClick={() => setLinks(links.filter((_, i) => i !== index))}
+              >
+                ✕
+              </IconButton>
+            </Box>
+          ))}
+          <Button
+            size="small"
+            onClick={() => setLinks([...links, { text: "", url: "" }])}
+          >
+            + Add Link
+          </Button>
+        </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel}>Cancel</Button>

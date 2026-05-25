@@ -11,6 +11,7 @@ interface LocationMarkerProps {
   location: MapLocation;
   editingMode: EditingMode;
   onRemove: () => void;
+  onEdit: () => void;
 }
 
 function buildMarkerIcon(location: MapLocation): L.DivIcon {
@@ -70,7 +71,7 @@ function LinksSection({ links }: { links: LocationLink[] }) {
   );
 }
 
-function PopupContent({ location }: { location: MapLocation }) {
+function PopupContent({ location, onEdit }: { location: MapLocation; onEdit: () => void }) {
   return (
     <div style={{ maxWidth: 300 }}>
       <strong>{location.name}</strong><br />
@@ -78,6 +79,13 @@ function PopupContent({ location }: { location: MapLocation }) {
       <strong>Description:</strong> {location.description}<br /><br />
       <strong>Why visit:</strong> {location.whyVisit}
       <LinksSection links={location.links} />
+      <br /><br />
+      <button
+        onClick={onEdit}
+        style={{ cursor: "pointer", padding: "4px 8px", fontSize: 12 }}
+      >
+        Edit
+      </button>
     </div>
   );
 }
@@ -86,9 +94,11 @@ export function LocationMarker({
   location,
   editingMode,
   onRemove,
+  onEdit,
 }: LocationMarkerProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const markerIcon = buildMarkerIcon(location);
+  const isAdding = editingMode === "add-marker" || editingMode === "add-zone";
 
   const handleMarkerClick = () => {
     if (editingMode === "remove") {
@@ -101,14 +111,15 @@ export function LocationMarker({
       <Marker
         position={[location.lat, location.lng]}
         icon={markerIcon}
+        interactive={!isAdding}
         eventHandlers={{
           click: handleMarkerClick,
         }}
       >
-        {editingMode !== "remove" && (
+        {!isAdding && editingMode !== "remove" && (
           <>
             <Popup maxWidth={320}>
-              <PopupContent location={location} />
+              <PopupContent location={location} onEdit={onEdit} />
             </Popup>
             <Tooltip sticky>
               {location.name} ({location.category})

@@ -9,6 +9,7 @@ interface AddZoneDialogProps {
   vertexCoordinates: [number, number][];
   onConfirm: (newZone: AreaBoundary) => void;
   onCancel: () => void;
+  editingZone?: AreaBoundary | null;
 }
 
 export function AddZoneDialog({
@@ -16,27 +17,31 @@ export function AddZoneDialog({
   vertexCoordinates,
   onConfirm,
   onCancel,
+  editingZone,
 }: AddZoneDialogProps) {
+  const isEditing = !!editingZone;
+  const coords = isEditing ? editingZone.coords : vertexCoordinates;
+
   return (
     <BaseLocationDialog
       isOpen={isOpen}
-      title="Add Zone"
-      submitLabel="Add Zone"
+      title={isEditing ? "Edit Zone" : "Add Zone"}
+      submitLabel={isEditing ? "Save" : "Add Zone"}
       categories={ZONE_CATEGORIES}
-      defaultCategory="National Park"
+      defaultCategory={editingZone?.category ?? "National Park"}
+      initialData={editingZone ?? undefined}
       nameLabel="Zone Name"
       namePlaceholder="Zone name"
       onCancel={onCancel}
       onSubmit={(data) => {
         onConfirm({
           ...data,
-          coords: vertexCoordinates,
-          links: [],
+          coords,
         });
       }}
       headerContent={
         <Typography variant="body2" color="text.secondary">
-          {vertexCoordinates.length} vertices selected
+          {coords.length} vertices selected
         </Typography>
       }
     />

@@ -1,0 +1,4 @@
+.leaflet-adding-mode .leaflet-interactive {
+  cursor: crosshair !important;
+  pointer-events: none;
+}

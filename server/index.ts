@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 import { DEFAULT_LOCATIONS, DEFAULT_AREA_BOUNDARIES } from "./defaultData.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, "maps.db");
+const DB_PATH = path.join(__dirname, "..", "data", "maps.db");
 
 // Initialize SQLite database
 const db = new Database(DB_PATH);
@@ -69,7 +69,7 @@ app.use(cors());
 app.use(express.json());
 
 // Serve frontend static files in production
-const clientDist = path.join(__dirname, "..", "dist");
+const clientDist = path.join(__dirname, "..", "frontend", "dist");
 app.use(express.static(clientDist));
 
 const server = createServer(app);

@@ -9,6 +9,7 @@ interface ZonePolygonProps {
   zone: AreaBoundary;
   editingMode: EditingMode;
   onRemove: () => void;
+  onEdit: () => void;
 }
 
 function LinksSection({ links }: { links: LocationLink[] }) {
@@ -29,7 +30,7 @@ function LinksSection({ links }: { links: LocationLink[] }) {
   );
 }
 
-function ZonePopupContent({ zone }: { zone: AreaBoundary }) {
+function ZonePopupContent({ zone, onEdit }: { zone: AreaBoundary; onEdit: () => void }) {
   return (
     <div style={{ maxWidth: 300 }}>
       <strong>{zone.name}</strong><br />
@@ -37,13 +38,21 @@ function ZonePopupContent({ zone }: { zone: AreaBoundary }) {
       <strong>Description:</strong> {zone.description}<br /><br />
       <strong>Why visit:</strong> {zone.whyVisit}
       <LinksSection links={zone.links} />
+      <br /><br />
+      <button
+        onClick={onEdit}
+        style={{ cursor: "pointer", padding: "4px 8px", fontSize: 12 }}
+      >
+        Edit
+      </button>
     </div>
   );
 }
 
-export function ZonePolygon({ zone, editingMode, onRemove }: ZonePolygonProps) {
+export function ZonePolygon({ zone, editingMode, onRemove, onEdit }: ZonePolygonProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const zoneColor = CATEGORY_ZONE_COLORS[zone.category];
+  const isAdding = editingMode === "add-marker" || editingMode === "add-zone";
 
   const handleZoneClick = () => {
     if (editingMode === "remove") {
@@ -55,6 +64,7 @@ export function ZonePolygon({ zone, editingMode, onRemove }: ZonePolygonProps) {
     <>
       <Polygon
         positions={zone.coords}
+        interactive={!isAdding}
         pathOptions={{
           color: zoneColor,
           weight: 2,
@@ -63,12 +73,12 @@ export function ZonePolygon({ zone, editingMode, onRemove }: ZonePolygonProps) {
         }}
         eventHandlers={{ click: handleZoneClick }}
       >
-        {editingMode !== "remove" && (
+        {!isAdding && editingMode !== "remove" && (
           <Popup maxWidth={320}>
-            <ZonePopupContent zone={zone} />
+            <ZonePopupContent zone={zone} onEdit={onEdit} />
           </Popup>
         )}
-        <Tooltip sticky>{zone.name} ({zone.category})</Tooltip>
+        {!isAdding && <Tooltip sticky>{zone.name} ({zone.category})</Tooltip>}
       </Polygon>
       <ConfirmDialog
         isOpen={confirmOpen}

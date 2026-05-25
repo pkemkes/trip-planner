@@ -14,13 +14,17 @@ function CursorOverride({ editingMode }: { editingMode: EditingMode }) {
     const container = map.getContainer();
     if (editingMode === "add-marker" || editingMode === "add-zone") {
       container.style.cursor = "crosshair";
+      container.classList.add("leaflet-adding-mode");
     } else if (editingMode === "remove") {
       container.style.cursor = "not-allowed";
+      container.classList.remove("leaflet-adding-mode");
     } else {
       container.style.cursor = "";
+      container.classList.remove("leaflet-adding-mode");
     }
     return () => {
       container.style.cursor = "";
+      container.classList.remove("leaflet-adding-mode");
     };
   }, [editingMode, map]);
 
@@ -35,6 +39,8 @@ interface TripPlannerMapProps {
   onMapClick: (latitude: number, longitude: number) => void;
   onRemoveLocation: (location: MapLocation) => void;
   onRemoveZone: (zone: AreaBoundary) => void;
+  onEditLocation: (location: MapLocation) => void;
+  onEditZone: (zone: AreaBoundary) => void;
 }
 
 export function TripPlannerMap({
@@ -45,6 +51,8 @@ export function TripPlannerMap({
   onMapClick,
   onRemoveLocation,
   onRemoveZone,
+  onEditLocation,
+  onEditZone,
 }: TripPlannerMapProps) {
   return (
     <MapContainer
@@ -72,6 +80,7 @@ export function TripPlannerMap({
           zone={zone}
           editingMode={editingMode}
           onRemove={() => onRemoveZone(zone)}
+          onEdit={() => onEditZone(zone)}
         />
       ))}
 
@@ -81,6 +90,7 @@ export function TripPlannerMap({
           location={location}
           editingMode={editingMode}
           onRemove={() => onRemoveLocation(location)}
+          onEdit={() => onEditLocation(location)}
         />
       ))}
 

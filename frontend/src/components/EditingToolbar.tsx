@@ -109,7 +109,7 @@ export function EditingToolbar({
             fullWidth
             sx={{ justifyContent: "flex-start" }}
           >
-            Remove Mode
+            Remove
           </Button>
 
           {currentMode === "add-zone" && zoneVertexCount >= 3 && (
