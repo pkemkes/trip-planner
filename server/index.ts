@@ -1,4 +1,5 @@
 import express from "express";
+import type { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -8,6 +9,28 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { DEFAULT_LOCATIONS, DEFAULT_AREA_BOUNDARIES } from "./defaultData.js";
+import {
+  ApiError,
+  applyPinPatch,
+  applyZonePatch,
+  buildPin,
+  buildZone,
+  filterActive,
+  findById,
+  migrateEntities,
+  softDelete,
+  validateMapName,
+  type Pin,
+  type Zone,
+} from "./entities.js";
+
+// Names of seeded entities, used to tag migrated rows with source "default".
+const DEFAULT_PIN_NAMES = new Set(
+  (DEFAULT_LOCATIONS as { name: string }[]).map((p) => p.name)
+);
+const DEFAULT_ZONE_NAMES = new Set(
+  (DEFAULT_AREA_BOUNDARIES as { name: string }[]).map((z) => z.name)
+);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, "..", "data", "maps.db");
@@ -44,8 +67,8 @@ if (mapCount === 0) {
 interface MapState {
   id: string;
   name: string;
-  userAddedMarkers: unknown[];
-  userAddedZones: unknown[];
+  userAddedMarkers: Pin[];
+  userAddedZones: Zone[];
   removedBuiltinMarkerNames: string[];
   removedBuiltinZoneNames: string[];
 }
@@ -87,21 +110,57 @@ function validateUuid(mapId: string): boolean {
   return uuidRegex.test(mapId);
 }
 
-function rowToMapState(row: MapRow): MapState {
+function readMap(mapId: string): MapState | null {
+  const row = db.prepare("SELECT * FROM maps WHERE id = ?").get(mapId) as MapRow | undefined;
+  if (!row) return null;
+
+  // Migration / backfill (A1, A2): ensure every stored pin/zone carries a stable
+  // id and soft-delete metadata. Persist back only when something changed so the
+  // backfill is idempotent.
+  const pins = migrateEntities<Pin>(JSON.parse(row.user_added_markers), DEFAULT_PIN_NAMES);
+  const zones = migrateEntities<Zone>(JSON.parse(row.user_added_zones), DEFAULT_ZONE_NAMES);
+
+  if (pins.changed || zones.changed) {
+    db.prepare(
+      "UPDATE maps SET user_added_markers = ?, user_added_zones = ? WHERE id = ?"
+    ).run(JSON.stringify(pins.entities), JSON.stringify(zones.entities), mapId);
+  }
+
   return {
     id: row.id,
     name: row.name,
-    userAddedMarkers: JSON.parse(row.user_added_markers),
-    userAddedZones: JSON.parse(row.user_added_zones),
+    userAddedMarkers: pins.entities,
+    userAddedZones: zones.entities,
     removedBuiltinMarkerNames: JSON.parse(row.removed_builtin_marker_names),
     removedBuiltinZoneNames: JSON.parse(row.removed_builtin_zone_names),
   };
 }
 
-function readMap(mapId: string): MapState | null {
-  const row = db.prepare("SELECT * FROM maps WHERE id = ?").get(mapId) as MapRow | undefined;
-  if (!row) return null;
-  return rowToMapState(row);
+/** Require a map to exist, throwing a structured MAP_NOT_FOUND otherwise. */
+function requireMap(mapId: string): MapState {
+  if (!validateUuid(mapId)) {
+    throw new ApiError("VALIDATION_ERROR", "mapId must be a valid UUID", { field: "mapId" });
+  }
+  const map = readMap(mapId);
+  if (!map) {
+    throw new ApiError("MAP_NOT_FOUND", "Map not found", { mapId });
+  }
+  return map;
+}
+
+/** Persist pins/zones for a map, bump updated_at, and broadcast the new state. */
+function persistEntities(mapId: string, pins: Pin[], zones: Zone[]): MapState {
+  db.prepare(
+    `UPDATE maps SET
+      user_added_markers = ?,
+      user_added_zones = ?,
+      updated_at = datetime('now')
+    WHERE id = ?`
+  ).run(JSON.stringify(pins), JSON.stringify(zones), mapId);
+
+  const updated = readMap(mapId)!;
+  broadcastToMap(mapId, { type: "map-updated", data: updated });
+  return updated;
 }
 
 function broadcastToMap(mapId: string, message: unknown, excludeWs?: WebSocket): void {
@@ -120,16 +179,12 @@ function broadcastToMap(mapId: string, message: unknown, excludeWs?: WebSocket):
 
 // Create a new map
 app.post("/api/maps", (req, res) => {
-  const name = req.body.name;
-  if (!name || typeof name !== "string" || name.trim().length === 0) {
-    res.status(400).json({ error: "Map name is required" });
-    return;
-  }
+  const name = validateMapName(req.body?.name);
 
   const id = uuidv4();
   db.prepare(
     "INSERT INTO maps (id, name, user_added_markers, user_added_zones, removed_builtin_marker_names, removed_builtin_zone_names) VALUES (?, ?, '[]', '[]', '[]', '[]')"
-  ).run(id, name.trim());
+  ).run(id, name);
 
   const mapState = readMap(id)!;
   res.status(201).json(mapState);
@@ -231,7 +286,116 @@ app.get("/api/maps", (_req, res) => {
   res.json(maps);
 });
 
-// WebSocket handling
+// ---------------------------------------------------------------------------
+// Entity-level pin endpoints (A4, A6)
+// ---------------------------------------------------------------------------
+
+function parseIncludeDeleted(req: Request): boolean {
+  return req.query.includeDeleted === "true";
+}
+
+// List pins
+app.get("/api/maps/:id/pins", (req, res) => {
+  const map = requireMap(req.params.id);
+  res.json(filterActive(map.userAddedMarkers, parseIncludeDeleted(req)));
+});
+
+// Create pin
+app.post("/api/maps/:id/pins", (req, res) => {
+  const map = requireMap(req.params.id);
+  const pin = buildPin(req.body?.pin ?? req.body, "user");
+  const pins = [...map.userAddedMarkers, pin];
+  persistEntities(map.id, pins, map.userAddedZones);
+  res.status(201).json(pin);
+});
+
+// Update pin (partial)
+app.patch("/api/maps/:id/pins/:pinId", (req, res) => {
+  const map = requireMap(req.params.id);
+  const existing = findById(map.userAddedMarkers, req.params.pinId);
+  if (!existing) {
+    throw new ApiError("PIN_NOT_FOUND", "Pin not found", { pinId: req.params.pinId });
+  }
+  if (existing.isDeleted) {
+    throw new ApiError("ENTITY_DELETED", "Cannot update a deleted pin", { pinId: existing.id });
+  }
+  const updated = applyPinPatch(existing, req.body?.patch ?? req.body);
+  const pins = map.userAddedMarkers.map((p) => (p.id === updated.id ? updated : p));
+  persistEntities(map.id, pins, map.userAddedZones);
+  res.json(updated);
+});
+
+// Soft-delete pin
+app.delete("/api/maps/:id/pins/:pinId", (req, res) => {
+  const map = requireMap(req.params.id);
+  const existing = findById(map.userAddedMarkers, req.params.pinId);
+  if (!existing) {
+    throw new ApiError("PIN_NOT_FOUND", "Pin not found", { pinId: req.params.pinId });
+  }
+  // Re-delete is idempotent: return the already-deleted entity unchanged.
+  if (existing.isDeleted) {
+    res.json(existing);
+    return;
+  }
+  const deleted = softDelete(existing);
+  const pins = map.userAddedMarkers.map((p) => (p.id === deleted.id ? deleted : p));
+  persistEntities(map.id, pins, map.userAddedZones);
+  res.json(deleted);
+});
+
+// ---------------------------------------------------------------------------
+// Entity-level zone endpoints (A5, A6)
+// ---------------------------------------------------------------------------
+
+// List zones
+app.get("/api/maps/:id/zones", (req, res) => {
+  const map = requireMap(req.params.id);
+  res.json(filterActive(map.userAddedZones, parseIncludeDeleted(req)));
+});
+
+// Create zone
+app.post("/api/maps/:id/zones", (req, res) => {
+  const map = requireMap(req.params.id);
+  const zone = buildZone(req.body?.zone ?? req.body, "user");
+  const zones = [...map.userAddedZones, zone];
+  persistEntities(map.id, map.userAddedMarkers, zones);
+  res.status(201).json(zone);
+});
+
+// Update zone (partial)
+app.patch("/api/maps/:id/zones/:zoneId", (req, res) => {
+  const map = requireMap(req.params.id);
+  const existing = findById(map.userAddedZones, req.params.zoneId);
+  if (!existing) {
+    throw new ApiError("ZONE_NOT_FOUND", "Zone not found", { zoneId: req.params.zoneId });
+  }
+  if (existing.isDeleted) {
+    throw new ApiError("ENTITY_DELETED", "Cannot update a deleted zone", { zoneId: existing.id });
+  }
+  const updated = applyZonePatch(existing, req.body?.patch ?? req.body);
+  const zones = map.userAddedZones.map((z) => (z.id === updated.id ? updated : z));
+  persistEntities(map.id, map.userAddedMarkers, zones);
+  res.json(updated);
+});
+
+// Soft-delete zone
+app.delete("/api/maps/:id/zones/:zoneId", (req, res) => {
+  const map = requireMap(req.params.id);
+  const existing = findById(map.userAddedZones, req.params.zoneId);
+  if (!existing) {
+    throw new ApiError("ZONE_NOT_FOUND", "Zone not found", { zoneId: req.params.zoneId });
+  }
+  if (existing.isDeleted) {
+    res.json(existing);
+    return;
+  }
+  const deleted = softDelete(existing);
+  const zones = map.userAddedZones.map((z) => (z.id === deleted.id ? deleted : z));
+  persistEntities(map.id, map.userAddedMarkers, zones);
+  res.json(deleted);
+});
+
+
 wss.on("connection", (ws, req) => {
   const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
   const mapId = url.searchParams.get("mapId");
@@ -305,6 +469,19 @@ wss.on("connection", (ws, req) => {
 // Fallback to index.html for client-side routing
 app.get("{*path}", (_req, res) => {
   res.sendFile(path.join(clientDist, "index.html"));
+});
+
+// Centralized error handler: translate ApiError into the structured error
+// contract, and surface anything else as a generic 500.
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof ApiError) {
+    res.status(err.httpStatus).json(err.toPayload());
+    return;
+  }
+  console.error("Unhandled error:", err);
+  res.status(500).json({
+    error: { code: "INTERNAL_ERROR", message: "Internal server error", details: {} },
+  });
 });
 
 const PORT = process.env.PORT ?? 3001;

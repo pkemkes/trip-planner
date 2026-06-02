@@ -4,8 +4,11 @@
   "scripts": {
     "dev": "pnpm --filter frontend dev",
     "dev:server": "pnpm --filter trip-planner-server dev",
+    "dev:mcp": "pnpm --filter trip-planner-mcp-server dev",
     "build": "pnpm --filter frontend build",
+    "build:mcp": "pnpm --filter trip-planner-mcp-server build",
     "lint": "pnpm --filter frontend lint",
-    "preview": "pnpm --filter frontend preview"
+    "preview": "pnpm --filter frontend preview",
+    "test": "pnpm --filter trip-planner-server test && pnpm --filter trip-planner-mcp-server test"
   }
 }
