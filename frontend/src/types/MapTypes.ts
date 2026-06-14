@@ -23,6 +23,7 @@ export interface AreaBoundary extends BaseLocation {
 export type LocationCategory =
   | "National Park"
   | "Scenic Area"
+  | "Stop"
   | "Town"
   | "Village"
   | "Hike"

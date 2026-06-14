@@ -2,7 +2,7 @@ import { Typography } from "@mui/material";
 import type { AreaBoundary, LocationCategory } from "../types/MapTypes";
 import { BaseLocationDialog } from "./BaseLocationDialog";
 
-const ZONE_CATEGORIES: LocationCategory[] = ["National Park", "Scenic Area"];
+const ZONE_CATEGORIES: LocationCategory[] = ["National Park", "Scenic Area", "Stop"];
 
 interface AddZoneDialogProps {
   isOpen: boolean;

@@ -3,6 +3,7 @@ import type { CategoryStyle, LocationCategory } from "../types/MapTypes";
 export const CATEGORY_MARKER_STYLES: Record<LocationCategory, CategoryStyle> = {
   "National Park": { color: "green", icon: "park" },
   "Scenic Area": { color: "darkpurple", icon: "landscape" },
+  Stop: { color: "darkgreen", icon: "hotel" },
   Town: { color: "blue", icon: "location_city" },
   Village: { color: "cadetblue", icon: "cottage" },
   Hike: { color: "orange", icon: "hiking" },
@@ -15,6 +16,7 @@ export const CATEGORY_MARKER_STYLES: Record<LocationCategory, CategoryStyle> = {
 export const CATEGORY_ZONE_COLORS: Record<LocationCategory, string> = {
   "National Park": "#228B22",
   "Scenic Area": "#1ea0a0",
+  Stop: "#f83808",
   Town: "#38aadd",
   Village: "#436978",
   Hike: "#f69730",

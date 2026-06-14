@@ -6,8 +6,14 @@ import { EditingToolbar } from "./components/EditingToolbar";
 import { AddMarkerDialog } from "./components/AddMarkerDialog";
 import { AddZoneDialog } from "./components/AddZoneDialog";
 import { MapLanding } from "./components/MapLanding";
+import { MapLegend } from "./components/MapLegend";
 import { useMapState } from "./hooks/useMapState";
-import type { AreaBoundary, EditingMode, MapLocation } from "./types/MapTypes";
+import type {
+  AreaBoundary,
+  EditingMode,
+  LocationCategory,
+  MapLocation,
+} from "./types/MapTypes";
 
 const theme = createTheme();
 
@@ -30,12 +36,62 @@ function App() {
   const [pendingMarkerLongitude, setPendingMarkerLongitude] = useState(0);
   const [editingMarker, setEditingMarker] = useState<MapLocation | null>(null);
   const [editingZone, setEditingZone] = useState<AreaBoundary | null>(null);
+  const [hiddenMarkerCategories, setHiddenMarkerCategories] = useState<
+    Set<LocationCategory>
+  >(() => new Set());
+  const [hiddenZoneCategories, setHiddenZoneCategories] = useState<
+    Set<LocationCategory>
+  >(() => new Set());
 
   const userAddedMarkers = useMemo(() => mapState?.userAddedMarkers ?? [], [mapState?.userAddedMarkers]);
   const userAddedZones = useMemo(() => mapState?.userAddedZones ?? [], [mapState?.userAddedZones]);
 
-  const visibleLocations = userAddedMarkers;
-  const visibleZones = userAddedZones;
+  const visibleLocations = useMemo(
+    () =>
+      userAddedMarkers.filter(
+        (marker) => !hiddenMarkerCategories.has(marker.category)
+      ),
+    [userAddedMarkers, hiddenMarkerCategories]
+  );
+  const visibleZones = useMemo(
+    () =>
+      userAddedZones.filter((zone) => !hiddenZoneCategories.has(zone.category)),
+    [userAddedZones, hiddenZoneCategories]
+  );
+
+  const markerCategories = useMemo(
+    () =>
+      Array.from(new Set(userAddedMarkers.map((marker) => marker.category))),
+    [userAddedMarkers]
+  );
+  const zoneCategories = useMemo(
+    () => Array.from(new Set(userAddedZones.map((zone) => zone.category))),
+    [userAddedZones]
+  );
+
+  const handleToggleMarkerCategory = useCallback((category: LocationCategory) => {
+    setHiddenMarkerCategories((previous) => {
+      const next = new Set(previous);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleZoneCategory = useCallback((category: LocationCategory) => {
+    setHiddenZoneCategories((previous) => {
+      const next = new Set(previous);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  }, []);
 
   const handleModeChange = useCallback(
     (newMode: EditingMode) => {
@@ -213,6 +269,15 @@ function App() {
           zoneVertexCount={zoneDrawingVertices.length}
           onModeChange={handleModeChange}
           onFinishZone={handleFinishZone}
+        />
+
+        <MapLegend
+          markerCategories={markerCategories}
+          zoneCategories={zoneCategories}
+          hiddenMarkerCategories={hiddenMarkerCategories}
+          hiddenZoneCategories={hiddenZoneCategories}
+          onToggleMarkerCategory={handleToggleMarkerCategory}
+          onToggleZoneCategory={handleToggleZoneCategory}
         />
       </Box>
 
