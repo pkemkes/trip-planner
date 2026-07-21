@@ -1,11 +1,12 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { AddressInfo } from "node:net";
+import type { Server } from "node:http";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { BackendClient } from "./backendClient.js";
-import { registerTools } from "./tools.js";
+import { createHttpApp, MCP_ENDPOINT } from "./app.js";
 // The MCP tools talk to the real REST backend, started in-process against an
 // in-memory database (D3: integration against a local backend).
 import { startTestServer, type TestServer } from "../../server/testHelpers.js";
@@ -36,21 +37,34 @@ const validZone = {
 };
 
 let backend: TestServer;
+let httpServer: Server;
+let mcpBaseUrl: string;
 let client: Client;
 
 before(async () => {
   backend = await startTestServer({ seed: false });
 
-  const server = new McpServer({ name: "trip-planner-mcp-test", version: "1.0.0" });
-  registerTools(server, new BackendClient({ baseUrl: backend.baseUrl }));
+  // Start the real Streamable HTTP MCP server on an ephemeral port and drive
+  // it with the HTTP client transport (A3: HTTP transport, no stdio spawning).
+  const app = createHttpApp(new BackendClient({ baseUrl: backend.baseUrl }));
+  httpServer = await new Promise<Server>((resolve) => {
+    const srv = app.listen(0, "127.0.0.1", () => resolve(srv));
+  });
+  const { port } = httpServer.address() as AddressInfo;
+  mcpBaseUrl = `http://127.0.0.1:${port}`;
 
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const transport = new StreamableHTTPClientTransport(new URL(`${mcpBaseUrl}${MCP_ENDPOINT}`));
   client = new Client({ name: "test-client", version: "1.0.0" });
-  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  await client.connect(transport);
 });
 
 after(async () => {
   await client.close();
+  // Force keep-alive sockets (SDK client + fetch) shut so close() can resolve.
+  httpServer.closeAllConnections();
+  await new Promise<void>((resolve, reject) =>
+    httpServer.close((err) => (err ? reject(err) : resolve()))
+  );
   await backend.close();
 });
 
@@ -237,5 +251,17 @@ describe("D3/C7: capability surface", () => {
     const names = tools.map((t) => t.name).sort();
     assert.equal(names.length, 11);
     assert.ok(!names.includes("delete_map"));
+  });
+});
+
+describe("A3: HTTP transport", () => {
+  it("rejects GET /mcp with 405", async () => {
+    const res = await fetch(`${mcpBaseUrl}${MCP_ENDPOINT}`, { method: "GET" });
+    assert.equal(res.status, 405);
+  });
+
+  it("rejects DELETE /mcp with 405", async () => {
+    const res = await fetch(`${mcpBaseUrl}${MCP_ENDPOINT}`, { method: "DELETE" });
+    assert.equal(res.status, 405);
   });
 });
