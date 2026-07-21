@@ -16,7 +16,9 @@ shutdown() {
 trap shutdown TERM INT
 
 echo "[entrypoint] starting backend (server) on :3001"
-( cd /app/server && exec pnpm start ) &
+# Run tsx directly via node so startup skips the corepack/pnpm workspace
+# re-link step that "pnpm start" triggers on every boot.
+( cd /app/server && exec node --import tsx index.ts ) &
 backend_pid=$!
 pids="$pids $backend_pid"
 
