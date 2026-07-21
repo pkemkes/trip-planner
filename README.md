@@ -37,10 +37,10 @@ The Vite dev server starts on `http://localhost:5173` and proxies `/api` and `/w
 
 ```bash
 docker build -t trip-planner .
-docker run -p 3001:3001 -v trip-planner-data:/app/data trip-planner
+docker run -p 3001:3001 -p 3002:3002 -v trip-planner-data:/app/data trip-planner
 ```
 
-The production build serves both the API and the static frontend on port 3001. The volume persists the SQLite database at `/app/data/maps.db`.
+The production build serves both the API and the static frontend on port 3001. The volume persists the SQLite database at `/app/data/maps.db`. The MCP server runs alongside the backend in the same container and exposes its Streamable HTTP endpoint at `http://localhost:3002/mcp`.
 
 ### Docker Compose
 
@@ -52,6 +52,7 @@ services:
     build: .
     ports:
       - "3001:3001"
+      - "3002:3002"
     volumes:
       - trip-planner-data:/app/data
     restart: unless-stopped
