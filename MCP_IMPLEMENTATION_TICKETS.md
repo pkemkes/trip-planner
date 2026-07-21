@@ -13,7 +13,7 @@ This ticket plan implements the requirements captured in MCP_SERVER_FEATURE_SPEC
 ## Priority and Milestones
 
 1. Milestone 1 (MVP): A1-A6, B1-B4, C1-C7, D1
-2. Milestone 2 (Hardening): A7-A8, D2-D5
+2. Milestone 2 (Hardening): A7-A9, D2-D5
 3. Milestone 3 (Future Auth Design): E1-E3
 
 ## Epic A: Backend Data Model and API Foundation
@@ -119,6 +119,32 @@ This ticket plan implements the requirements captured in MCP_SERVER_FEATURE_SPEC
   - Add ENTITY_DELETED behavior for invalid mutation of deleted entities.
 - Acceptance criteria:
   - MAP_NOT_FOUND, PIN_NOT_FOUND, ZONE_NOT_FOUND, VALIDATION_ERROR, CONFLICT, BACKEND_UNAVAILABLE, ENTITY_DELETED are all reachable as documented.
+
+### A9. Exclude soft-deleted entities from the whole-map read paths
+
+- Type: Backend
+- Priority: P0
+- Dependencies: A1, A2, A4, A5
+- Description:
+  - The legacy whole-map read paths (GET /api/maps/:id and the WebSocket
+    map-updated broadcast) predate soft-delete and currently return every
+    stored pin/zone, including entities with isDeleted true. The frontend
+    renders these directly, so pins/zones soft-deleted via MCP still appear on
+    the map, and a frontend PUT /api/maps round-trip can resurrect them.
+  - Filter isDeleted entities out of the map state returned by GET /api/maps/:id
+    and the map-updated WebSocket payload so the frontend never receives
+    soft-deleted pins/zones.
+  - Preserve soft-delete records in storage; only filter on read/broadcast. Do
+    not filter the entity-level list endpoints, which keep their existing
+    includeDeleted semantics.
+  - Ensure the frontend PUT /api/maps update path cannot reintroduce a
+    previously soft-deleted entity by omitting it from the read snapshot.
+- Acceptance criteria:
+  - GET /api/maps/:id returns only active pins/zones.
+  - map-updated WebSocket broadcasts contain only active pins/zones.
+  - Entity-level GET /pins and /zones still honor includeDeleted.
+  - A pin/zone soft-deleted via MCP no longer renders in the frontend and is
+    not resurrected by a subsequent frontend save.
 
 ## Epic B: MCP Server Scaffold and Map Tools
 
@@ -269,11 +295,14 @@ This ticket plan implements the requirements captured in MCP_SERVER_FEATURE_SPEC
 - Priority: P0
 - Dependencies: A4, A5, A8
 - Description:
-  - Cover UUID validation, categories, coordinates, soft-delete transitions.
-  - Cover entity-not-found and entity-deleted behavior.
+  - Cover UUID validation, categories, coordinates, and soft-delete transitions
+    at the pure-function level (build, patch, softDelete, migrate, filter).
+  - Note: entity-not-found and entity-deleted responses live in the HTTP route
+    handlers and are verified by the integration tests in D2, not here.
 - Acceptance criteria:
   - Test suite passes with stable results.
   - Validation matrix is documented in test names.
+  - Soft-delete and backfill (migration) transitions are covered.
 
 ### D2. Add backend integration tests for pin and zone lifecycle
 
@@ -282,9 +311,15 @@ This ticket plan implements the requirements captured in MCP_SERVER_FEATURE_SPEC
 - Dependencies: D1
 - Description:
   - End-to-end create, update, soft-delete, list (with and without includeDeleted).
+  - Exercise the HTTP route handlers directly so error and negative paths are
+    covered alongside the happy paths.
 - Acceptance criteria:
   - All CRUD paths pass for both pin and zone.
   - Both default and user entities are covered for edit/delete.
+  - Entity-not-found returns PIN_NOT_FOUND / ZONE_NOT_FOUND.
+  - Updating a soft-deleted entity returns ENTITY_DELETED.
+  - Re-deleting a soft-deleted entity is deterministic (idempotent per the
+    chosen API rule).
 
 ### D3. Add MCP integration tests against local backend
 
@@ -360,7 +395,7 @@ This ticket plan implements the requirements captured in MCP_SERVER_FEATURE_SPEC
 ## Suggested Sprint Packaging
 
 1. Sprint 1: A1-A6, B1-B4, C1-C7, D1
-2. Sprint 2: A7-A8, D2-D4
+2. Sprint 2: A7-A9, D2-D4
 3. Sprint 3: D5, E1-E3
 
 ## Risks and Mitigations
