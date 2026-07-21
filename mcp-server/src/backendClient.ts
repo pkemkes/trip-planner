@@ -3,14 +3,17 @@
  * normalize all failures into one of these codes so the LLM can recover
  * deterministically.
  */
-export type McpErrorCode =
-  | "MAP_NOT_FOUND"
-  | "PIN_NOT_FOUND"
-  | "ZONE_NOT_FOUND"
-  | "VALIDATION_ERROR"
-  | "CONFLICT"
-  | "ENTITY_DELETED"
-  | "BACKEND_UNAVAILABLE";
+export const MCP_ERROR_CODES = [
+  "MAP_NOT_FOUND",
+  "PIN_NOT_FOUND",
+  "ZONE_NOT_FOUND",
+  "VALIDATION_ERROR",
+  "CONFLICT",
+  "ENTITY_DELETED",
+  "BACKEND_UNAVAILABLE",
+] as const;
+
+export type McpErrorCode = (typeof MCP_ERROR_CODES)[number];
 
 export class McpToolError extends Error {
   code: McpErrorCode;
@@ -28,15 +31,7 @@ export class McpToolError extends Error {
   }
 }
 
-const BACKEND_ERROR_CODES: ReadonlySet<string> = new Set<McpErrorCode>([
-  "MAP_NOT_FOUND",
-  "PIN_NOT_FOUND",
-  "ZONE_NOT_FOUND",
-  "VALIDATION_ERROR",
-  "CONFLICT",
-  "ENTITY_DELETED",
-  "BACKEND_UNAVAILABLE",
-]);
+const BACKEND_ERROR_CODES: ReadonlySet<string> = new Set<McpErrorCode>(MCP_ERROR_CODES);
 
 export interface BackendClientOptions {
   baseUrl: string;
