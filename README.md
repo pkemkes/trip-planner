@@ -81,25 +81,37 @@ directly.
 The MCP server needs a running backend (see [Start the backend server](#start-the-backend-server)).
 
 ```bash
-pnpm dev:mcp      # start the MCP server in watch mode (stdio transport)
+pnpm dev:mcp      # start the MCP server in watch mode (Streamable HTTP transport)
 pnpm build:mcp    # compile to mcp-server/dist
 ```
 
-After building, the server can be launched directly (e.g. from an MCP client
-config) via its stdio entrypoint:
+After building, the server can be launched directly:
 
 ```bash
 node mcp-server/dist/index.js
 ```
 
+The server exposes a single [Streamable HTTP](https://modelcontextprotocol.io/docs/concepts/transports)
+endpoint at `POST /mcp` (by default `http://localhost:3002/mcp`). It runs in a
+stateless model: each request gets a fresh MCP server and transport with no
+shared session state, so there is no `Mcp-Session-Id` handling or SSE stream
+resumability. `GET` and `DELETE` on `/mcp` return `405 Method Not Allowed`.
+
+> **Security note:** authentication and authorization are not implemented. The
+> endpoint is reachable over the network, so deploy it only behind a trusted
+> boundary (private network, VPN, or authenticating reverse proxy) until the
+> auth track lands.
+
 ### Environment variables
 
-| Variable           | Default                 | Description                       |
-| ------------------ | ----------------------- | --------------------------------- |
-| `BACKEND_BASE_URL` | `http://localhost:3001` | Base URL of the REST backend API. |
+| Variable           | Default                 | Description                                                      |
+| ------------------ | ----------------------- | --------------------------------------------------------------- |
+| `BACKEND_BASE_URL` | `http://localhost:3001` | Base URL of the REST backend API.                               |
+| `MCP_HOST`         | `0.0.0.0`               | Host/interface the MCP HTTP server binds to.                    |
+| `MCP_PORT`         | `3002`                  | Port the MCP HTTP server listens on.                            |
 
-The server communicates over stdio (JSON-RPC); diagnostic logs are written to
-stderr so they never corrupt the protocol stream.
+Diagnostic logs are written to stderr and are never written to the HTTP response
+body.
 
 ### Tools
 

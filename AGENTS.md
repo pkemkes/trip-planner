@@ -14,7 +14,8 @@ pnpm monorepo with three workspace packages:
   Serves the REST API, the WebSocket sync channel, and (in production) the
   static frontend build.
 - **`mcp-server/`** — Model Context Protocol server that exposes trip-planner
-  functionality as MCP tools, backed by the same server API.
+  functionality as MCP tools, backed by the same server API. Serves a stateless
+  Streamable HTTP endpoint at `POST /mcp` on port `3002` by default.
 
 ## Tech Stack
 
