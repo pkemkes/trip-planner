@@ -44,7 +44,7 @@ export function registerMapTools(server: McpServer, backend: BackendClient): voi
     {
       title: "Get map summary",
       description: "Return a map's id, name, active pin/zone counts, and updatedAt.",
-      inputSchema: { mapId: uuid },
+      inputSchema: { mapId: uuid() },
     },
     handler(async ({ mapId }) => {
       // Pull list metadata for updatedAt, and active entity counts.

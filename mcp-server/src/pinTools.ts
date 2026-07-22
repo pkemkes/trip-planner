@@ -13,7 +13,7 @@ export function registerPinTools(server: McpServer, backend: BackendClient): voi
       title: "List pins",
       description:
         "List pins for a map with stable ids. Excludes soft-deleted pins unless includeDeleted is true.",
-      inputSchema: { mapId: uuid, includeDeleted: z.boolean().optional() },
+      inputSchema: { mapId: uuid(), includeDeleted: z.boolean().optional() },
     },
     handler(async ({ mapId, includeDeleted }) => {
       const pins = await backend.request<Pin[]>(`/api/maps/${mapId}/pins`, {
@@ -28,7 +28,7 @@ export function registerPinTools(server: McpServer, backend: BackendClient): voi
     {
       title: "Create pin",
       description: "Create a pin on a map. Returns only the created pin with its generated id.",
-      inputSchema: { mapId: uuid, pin: pinInputSchema },
+      inputSchema: { mapId: uuid(), pin: pinInputSchema },
     },
     handler(async ({ mapId, pin }) => {
       const created = await backend.request<Pin>(`/api/maps/${mapId}/pins`, {
@@ -44,7 +44,7 @@ export function registerPinTools(server: McpServer, backend: BackendClient): voi
     {
       title: "Update pin",
       description: "Partially update a pin by id. Returns only the updated pin.",
-      inputSchema: { mapId: uuid, pinId: uuid, patch: pinPatchSchema },
+      inputSchema: { mapId: uuid(), pinId: uuid(), patch: pinPatchSchema },
     },
     handler(async ({ mapId, pinId, patch }) => {
       const updated = await backend.request<Pin>(`/api/maps/${mapId}/pins/${pinId}`, {
@@ -61,7 +61,7 @@ export function registerPinTools(server: McpServer, backend: BackendClient): voi
       title: "Delete pin",
       description:
         "Soft-delete a pin by id (works for default and user pins). Returns only the changed entity.",
-      inputSchema: { mapId: uuid, pinId: uuid },
+      inputSchema: { mapId: uuid(), pinId: uuid() },
     },
     handler(async ({ mapId, pinId }) => {
       const deleted = await backend.request<Pin>(`/api/maps/${mapId}/pins/${pinId}`, {

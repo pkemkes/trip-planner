@@ -13,7 +13,7 @@ export function registerZoneTools(server: McpServer, backend: BackendClient): vo
       title: "List zones",
       description:
         "List zones for a map with stable ids. Excludes soft-deleted zones unless includeDeleted is true.",
-      inputSchema: { mapId: uuid, includeDeleted: z.boolean().optional() },
+      inputSchema: { mapId: uuid(), includeDeleted: z.boolean().optional() },
     },
     handler(async ({ mapId, includeDeleted }) => {
       const zones = await backend.request<Zone[]>(`/api/maps/${mapId}/zones`, {
@@ -28,7 +28,7 @@ export function registerZoneTools(server: McpServer, backend: BackendClient): vo
     {
       title: "Create zone",
       description: "Create a zone on a map. Returns only the created zone with its generated id.",
-      inputSchema: { mapId: uuid, zone: zoneInputSchema },
+      inputSchema: { mapId: uuid(), zone: zoneInputSchema },
     },
     handler(async ({ mapId, zone }) => {
       const created = await backend.request<Zone>(`/api/maps/${mapId}/zones`, {
@@ -44,7 +44,7 @@ export function registerZoneTools(server: McpServer, backend: BackendClient): vo
     {
       title: "Update zone",
       description: "Partially update a zone by id. Returns only the updated zone.",
-      inputSchema: { mapId: uuid, zoneId: uuid, patch: zonePatchSchema },
+      inputSchema: { mapId: uuid(), zoneId: uuid(), patch: zonePatchSchema },
     },
     handler(async ({ mapId, zoneId, patch }) => {
       const updated = await backend.request<Zone>(`/api/maps/${mapId}/zones/${zoneId}`, {
@@ -61,7 +61,7 @@ export function registerZoneTools(server: McpServer, backend: BackendClient): vo
       title: "Delete zone",
       description:
         "Soft-delete a zone by id (works for default and user zones). Returns only the changed entity.",
-      inputSchema: { mapId: uuid, zoneId: uuid },
+      inputSchema: { mapId: uuid(), zoneId: uuid() },
     },
     handler(async ({ mapId, zoneId }) => {
       const deleted = await backend.request<Zone>(`/api/maps/${mapId}/zones/${zoneId}`, {

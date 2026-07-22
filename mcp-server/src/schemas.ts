@@ -15,7 +15,10 @@ export const PIN_CATEGORIES = [
 ] as const;
 export const ZONE_CATEGORIES = ["National Park", "Scenic Area"] as const;
 
-export const uuid = z.string().uuid();
+// A factory (not a shared constant) so each field gets its own inlined schema.
+// Reusing one zod object instance makes zod-to-json-schema emit a `$ref`, which
+// some MCP clients (e.g. ChatGPT) reject as an invalid tool schema.
+export const uuid = () => z.string().uuid();
 const linkSchema = z.object({ text: z.string().min(1), url: z.string().url() });
 
 // Fields common to create (input) and patch schemas. The `links` field differs:
