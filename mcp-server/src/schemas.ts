@@ -42,7 +42,10 @@ export const pinPatchSchema = z
 const zoneFields = {
   name: z.string().min(1),
   category: z.enum(ZONE_CATEGORIES),
-  coords: z.array(z.tuple([z.number(), z.number()])).min(3),
+  coords: z
+    .array(z.array(z.number()).length(2))
+    .min(3)
+    .describe("Polygon vertices as [lat, lng] pairs; at least 3 required."),
   description: z.string().min(1),
   whyVisit: z.string().min(1),
 };
