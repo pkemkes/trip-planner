@@ -5,6 +5,7 @@ import { z } from "zod";
 // ---------------------------------------------------------------------------
 
 export const PIN_CATEGORIES = [
+  "Stop",
   "Town",
   "Village",
   "Hike",

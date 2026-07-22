@@ -3,7 +3,7 @@ import type { LocationCategory, MapLocation } from "../types/MapTypes";
 import { BaseLocationDialog } from "./BaseLocationDialog";
 
 const MARKER_CATEGORIES = (Object.keys(CATEGORY_MARKER_STYLES) as LocationCategory[]).filter(
-  (category) => category !== "National Park" && category !== "Scenic Area" && category !== "Stop"
+  (category) => category !== "National Park" && category !== "Scenic Area"
 );
 
 interface AddMarkerDialogProps {

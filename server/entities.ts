@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 // ---------------------------------------------------------------------------
 
 export const PIN_CATEGORIES = [
+  "Stop",
   "Town",
   "Village",
   "Hike",
