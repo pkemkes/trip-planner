@@ -1,5 +1,7 @@
 import { CircleMarker, Polygon, Polyline, Popup, Tooltip } from "react-leaflet";
 import { useState } from "react";
+import { Button } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
 import type { AreaBoundary, EditingMode } from "../types/MapTypes";
 import type { LocationLink } from "../types/MapTypes";
 import { CATEGORY_ZONE_COLORS } from "../data/categoryStyles";
@@ -8,8 +10,11 @@ import { ConfirmDialog } from "./ConfirmDialog";
 interface ZonePolygonProps {
   zone: AreaBoundary;
   editingMode: EditingMode;
+  isMobile: boolean;
+  isSelected: boolean;
   onRemove: () => void;
   onEdit: () => void;
+  onSelect: () => void;
 }
 
 function LinksSection({ links }: { links: LocationLink[] }) {
@@ -39,17 +44,27 @@ function ZonePopupContent({ zone, onEdit }: { zone: AreaBoundary; onEdit: () => 
       <strong>Why visit:</strong> {zone.whyVisit}
       <LinksSection links={zone.links} />
       <br /><br />
-      <button
+      <Button
+        size="small"
+        variant="outlined"
+        startIcon={<EditIcon />}
         onClick={onEdit}
-        style={{ cursor: "pointer", padding: "4px 8px", fontSize: 12 }}
       >
         Edit
-      </button>
+      </Button>
     </div>
   );
 }
 
-export function ZonePolygon({ zone, editingMode, onRemove, onEdit }: ZonePolygonProps) {
+export function ZonePolygon({
+  zone,
+  editingMode,
+  isMobile,
+  isSelected,
+  onRemove,
+  onEdit,
+  onSelect,
+}: ZonePolygonProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const zoneColor = CATEGORY_ZONE_COLORS[zone.category];
   const isAdding = editingMode === "add-marker" || editingMode === "add-zone";
@@ -57,6 +72,10 @@ export function ZonePolygon({ zone, editingMode, onRemove, onEdit }: ZonePolygon
   const handleZoneClick = () => {
     if (editingMode === "remove") {
       setConfirmOpen(true);
+      return;
+    }
+    if (isMobile && editingMode === "normal") {
+      onSelect();
     }
   };
 
@@ -67,18 +86,22 @@ export function ZonePolygon({ zone, editingMode, onRemove, onEdit }: ZonePolygon
         interactive={!isAdding}
         pathOptions={{
           color: zoneColor,
-          weight: 2,
+          weight: isSelected ? 4 : 2,
           fillColor: zoneColor,
-          fillOpacity: 0.2,
+          fillOpacity: isSelected ? 0.45 : 0.2,
         }}
         eventHandlers={{ click: handleZoneClick }}
       >
-        {!isAdding && editingMode !== "remove" && (
+        {!isAdding && editingMode !== "remove" && !isMobile && (
           <Popup maxWidth={320}>
             <ZonePopupContent zone={zone} onEdit={onEdit} />
           </Popup>
         )}
-        {!isAdding && <Tooltip sticky>{zone.name} ({zone.category})</Tooltip>}
+        {!isAdding && !isMobile && (
+          <Tooltip sticky>
+            {zone.name} ({zone.category})
+          </Tooltip>
+        )}
       </Polygon>
       <ConfirmDialog
         isOpen={confirmOpen}

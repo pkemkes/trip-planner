@@ -2,6 +2,8 @@ import { Marker, Popup, Tooltip, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { renderToStaticMarkup } from "react-dom/server";
 import { useState } from "react";
+import { Button } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
 import type { EditingMode, MapLocation } from "../types/MapTypes";
 import type { LocationLink } from "../types/MapTypes";
 import { CATEGORY_MARKER_STYLES } from "../data/categoryStyles";
@@ -10,34 +12,42 @@ import { ConfirmDialog } from "./ConfirmDialog";
 interface LocationMarkerProps {
   location: MapLocation;
   editingMode: EditingMode;
+  isMobile: boolean;
+  isSelected: boolean;
   onRemove: () => void;
   onEdit: () => void;
+  onSelect: () => void;
 }
 
-function buildMarkerIcon(location: MapLocation): L.DivIcon {
+function buildMarkerIcon(location: MapLocation, highlighted: boolean): L.DivIcon {
   const style = CATEGORY_MARKER_STYLES[location.category] ?? {
     color: "blue",
     icon: "place",
   };
 
+  const size = highlighted ? 38 : 28;
+  const iconFontSize = highlighted ? 20 : 14;
+
   const html = renderToStaticMarkup(
     <div
       style={{
         backgroundColor: style.color,
-        width: 28,
-        height: 28,
+        width: size,
+        height: size,
         borderRadius: "50% 50% 50% 0",
         transform: "rotate(-45deg)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        border: "2px solid white",
-        boxShadow: "0 2px 5px rgba(0,0,0,0.3)",
+        border: highlighted ? "3px solid #1976d2" : "2px solid white",
+        boxShadow: highlighted
+          ? "0 0 0 4px rgba(25,118,210,0.35), 0 2px 6px rgba(0,0,0,0.4)"
+          : "0 2px 5px rgba(0,0,0,0.3)",
       }}
     >
       <span
         className="material-icons"
-        style={{ transform: "rotate(45deg)", color: "white", fontSize: 14 }}
+        style={{ transform: "rotate(45deg)", color: "white", fontSize: iconFontSize }}
       >
         {style.icon}
       </span>
@@ -47,9 +57,9 @@ function buildMarkerIcon(location: MapLocation): L.DivIcon {
   return L.divIcon({
     className: "custom-marker-icon",
     html,
-    iconSize: [28, 28],
-    iconAnchor: [14, 28],
-    popupAnchor: [0, -28],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+    popupAnchor: [0, -size],
   });
 }
 
@@ -80,12 +90,14 @@ function PopupContent({ location, onEdit }: { location: MapLocation; onEdit: () 
       <strong>Why visit:</strong> {location.whyVisit}
       <LinksSection links={location.links} />
       <br /><br />
-      <button
+      <Button
+        size="small"
+        variant="outlined"
+        startIcon={<EditIcon />}
         onClick={onEdit}
-        style={{ cursor: "pointer", padding: "4px 8px", fontSize: 12 }}
       >
         Edit
-      </button>
+      </Button>
     </div>
   );
 }
@@ -93,16 +105,23 @@ function PopupContent({ location, onEdit }: { location: MapLocation; onEdit: () 
 export function LocationMarker({
   location,
   editingMode,
+  isMobile,
+  isSelected,
   onRemove,
   onEdit,
+  onSelect,
 }: LocationMarkerProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const markerIcon = buildMarkerIcon(location);
+  const markerIcon = buildMarkerIcon(location, isSelected);
   const isAdding = editingMode === "add-marker" || editingMode === "add-zone";
 
   const handleMarkerClick = () => {
     if (editingMode === "remove") {
       setConfirmOpen(true);
+      return;
+    }
+    if (isMobile && editingMode === "normal") {
+      onSelect();
     }
   };
 
@@ -116,7 +135,7 @@ export function LocationMarker({
           click: handleMarkerClick,
         }}
       >
-        {!isAdding && editingMode !== "remove" && (
+        {!isAdding && editingMode !== "remove" && !isMobile && (
           <>
             <Popup maxWidth={320}>
               <PopupContent location={location} onEdit={onEdit} />

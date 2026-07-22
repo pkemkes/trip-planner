@@ -1,5 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
-import { Box, CircularProgress, CssBaseline, Typography } from "@mui/material";
+import {
+  Box,
+  CircularProgress,
+  CssBaseline,
+  Typography,
+  useMediaQuery,
+} from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { TripPlannerMap } from "./components/TripPlannerMap";
 import { EditingToolbar } from "./components/EditingToolbar";
@@ -7,6 +13,7 @@ import { AddMarkerDialog } from "./components/AddMarkerDialog";
 import { AddZoneDialog } from "./components/AddZoneDialog";
 import { MapLanding } from "./components/MapLanding";
 import { MapLegend } from "./components/MapLegend";
+import { DetailSheet } from "./components/DetailSheet";
 import { useMapState } from "./hooks/useMapState";
 import type {
   AreaBoundary,
@@ -17,7 +24,14 @@ import type {
 
 const theme = createTheme();
 
+type SelectedDetail =
+  | { kind: "marker"; location: MapLocation }
+  | { kind: "zone"; zone: AreaBoundary };
+
 function App() {
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"), {
+    noSsr: true,
+  });
   const {
     mapId,
     mapState,
@@ -36,6 +50,9 @@ function App() {
   const [pendingMarkerLongitude, setPendingMarkerLongitude] = useState(0);
   const [editingMarker, setEditingMarker] = useState<MapLocation | null>(null);
   const [editingZone, setEditingZone] = useState<AreaBoundary | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<SelectedDetail | null>(
+    null
+  );
   const [hiddenMarkerCategories, setHiddenMarkerCategories] = useState<
     Set<LocationCategory>
   >(() => new Set());
@@ -98,10 +115,21 @@ function App() {
       if (editingMode === "add-zone" && newMode !== "add-zone") {
         setZoneDrawingVertices([]);
       }
+      if (newMode !== "normal") {
+        setSelectedDetail(null);
+      }
       setEditingMode(newMode);
     },
     [editingMode]
   );
+
+  const handleSelectLocation = useCallback((location: MapLocation) => {
+    setSelectedDetail({ kind: "marker", location });
+  }, []);
+
+  const handleSelectZone = useCallback((zone: AreaBoundary) => {
+    setSelectedDetail({ kind: "zone", zone });
+  }, []);
 
   const handleMapClick = useCallback(
     (latitude: number, longitude: number) => {
@@ -178,6 +206,7 @@ function App() {
   );
 
   const handleEditLocation = useCallback((location: MapLocation) => {
+    setSelectedDetail(null);
     setEditingMarker(location);
     setPendingMarkerLatitude(location.lat);
     setPendingMarkerLongitude(location.lng);
@@ -185,6 +214,7 @@ function App() {
   }, []);
 
   const handleEditZone = useCallback((zone: AreaBoundary) => {
+    setSelectedDetail(null);
     setEditingZone(zone);
     setIsZoneDialogOpen(true);
   }, []);
@@ -225,6 +255,13 @@ function App() {
     );
   }
 
+  const selectedMarkerKey =
+    selectedDetail?.kind === "marker"
+      ? `${selectedDetail.location.name}-${selectedDetail.location.lat}-${selectedDetail.location.lng}`
+      : null;
+  const selectedZoneName =
+    selectedDetail?.kind === "zone" ? selectedDetail.zone.name : null;
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -234,11 +271,16 @@ function App() {
           visibleZones={visibleZones}
           editingMode={editingMode}
           zoneDrawingVertices={zoneDrawingVertices}
+          isMobile={isMobile}
+          selectedMarkerKey={selectedMarkerKey}
+          selectedZoneName={selectedZoneName}
           onMapClick={handleMapClick}
           onRemoveLocation={handleRemoveLocation}
           onRemoveZone={handleRemoveZone}
           onEditLocation={handleEditLocation}
           onEditZone={handleEditZone}
+          onSelectLocation={handleSelectLocation}
+          onSelectZone={handleSelectZone}
         />
 
         <Typography
@@ -279,6 +321,22 @@ function App() {
           onToggleMarkerCategory={handleToggleMarkerCategory}
           onToggleZoneCategory={handleToggleZoneCategory}
         />
+
+        {isMobile && selectedDetail && (
+          <DetailSheet
+            item={
+              selectedDetail.kind === "marker"
+                ? selectedDetail.location
+                : selectedDetail.zone
+            }
+            onEdit={() =>
+              selectedDetail.kind === "marker"
+                ? handleEditLocation(selectedDetail.location)
+                : handleEditZone(selectedDetail.zone)
+            }
+            onClose={() => setSelectedDetail(null)}
+          />
+        )}
       </Box>
 
       <AddMarkerDialog

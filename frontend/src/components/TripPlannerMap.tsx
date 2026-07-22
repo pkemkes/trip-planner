@@ -36,11 +36,16 @@ interface TripPlannerMapProps {
   visibleZones: AreaBoundary[];
   editingMode: EditingMode;
   zoneDrawingVertices: [number, number][];
+  isMobile: boolean;
+  selectedMarkerKey: string | null;
+  selectedZoneName: string | null;
   onMapClick: (latitude: number, longitude: number) => void;
   onRemoveLocation: (location: MapLocation) => void;
   onRemoveZone: (zone: AreaBoundary) => void;
   onEditLocation: (location: MapLocation) => void;
   onEditZone: (zone: AreaBoundary) => void;
+  onSelectLocation: (location: MapLocation) => void;
+  onSelectZone: (zone: AreaBoundary) => void;
 }
 
 export function TripPlannerMap({
@@ -48,11 +53,16 @@ export function TripPlannerMap({
   visibleZones,
   editingMode,
   zoneDrawingVertices,
+  isMobile,
+  selectedMarkerKey,
+  selectedZoneName,
   onMapClick,
   onRemoveLocation,
   onRemoveZone,
   onEditLocation,
   onEditZone,
+  onSelectLocation,
+  onSelectZone,
 }: TripPlannerMapProps) {
   return (
     <MapContainer
@@ -79,8 +89,11 @@ export function TripPlannerMap({
           key={zone.name}
           zone={zone}
           editingMode={editingMode}
+          isMobile={isMobile}
+          isSelected={selectedZoneName === zone.name}
           onRemove={() => onRemoveZone(zone)}
           onEdit={() => onEditZone(zone)}
+          onSelect={() => onSelectZone(zone)}
         />
       ))}
 
@@ -89,8 +102,14 @@ export function TripPlannerMap({
           key={`${location.name}-${location.lat}-${location.lng}`}
           location={location}
           editingMode={editingMode}
+          isMobile={isMobile}
+          isSelected={
+            selectedMarkerKey ===
+            `${location.name}-${location.lat}-${location.lng}`
+          }
           onRemove={() => onRemoveLocation(location)}
           onEdit={() => onEditLocation(location)}
+          onSelect={() => onSelectLocation(location)}
         />
       ))}
 
